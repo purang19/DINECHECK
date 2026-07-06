@@ -3,6 +3,7 @@ import { Check, Download, FileText, LayoutDashboard, Sparkles } from 'lucide-rea
 import { getSurveysByDate, getSurveysSince, submitSurvey } from './supabase';
 import { avgFoodQuality, startDateFor } from './stats';
 import Dashboard from './Dashboard';
+import { useLang } from './i18n';
 import type { SurveyData, TastedItem } from './types';
 
 const RESTAURANTS = [
@@ -29,6 +30,7 @@ const today = () => new Date().toISOString().split('T')[0];
 type StaffRatingField = 'promptnessOfService' | 'attentivenessAndCare' | 'cleanliness' | 'value';
 
 export default function SurveyApp() {
+  const { lang, setLang, t } = useLang();
   const [activeView, setActiveView] = useState<'evaluation' | 'dashboard' | 'reports'>('evaluation');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,13 +120,13 @@ export default function SurveyApp() {
       !formData.timeOfService ||
       !formData.typeOfService
     ) {
-      setErrorMsg('Please fill in your Name, Employee ID, Date, Restaurant, Time, and Type of Service.');
+      setErrorMsg(t('err.details'));
       return false;
     }
 
     for (const item of formData.tastedItems) {
       if (!item.itemName) {
-        setErrorMsg('Please provide a name for all tasted items.');
+        setErrorMsg(t('err.itemName'));
         return false;
       }
       if (
@@ -134,7 +136,7 @@ export default function SurveyApp() {
         !item.foodTemperature ||
         !item.foodPresentation
       ) {
-        setErrorMsg(`Please complete all Food Quality ratings for ${item.itemName}.`);
+        setErrorMsg(t('err.itemRatings', { item: item.itemName }));
         return false;
       }
     }
@@ -145,7 +147,7 @@ export default function SurveyApp() {
       !formData.cleanliness ||
       !formData.value
     ) {
-      setErrorMsg('Please complete all Staff Service ratings.');
+      setErrorMsg(t('err.staff'));
       return false;
     }
     setErrorMsg('');
@@ -168,7 +170,7 @@ export default function SurveyApp() {
       scrollToTop();
     } catch (error) {
       console.error('Error submitting survey:', error);
-      setErrorMsg('There was an error submitting your evaluation. Please try again.');
+      setErrorMsg(t('err.submit'));
       scrollToTop();
     } finally {
       setIsSubmitting(false);
@@ -254,7 +256,7 @@ export default function SurveyApp() {
       const surveys = await getSurveysByDate(reportStartDate, reportEndDate);
 
       if (surveys.length === 0) {
-        setReportError('No evaluations found for the selected date range.');
+        setReportError(t('reports.errNoData'));
         setIsDownloading(false);
         return;
       }
@@ -322,7 +324,7 @@ export default function SurveyApp() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      setReportError('Error fetching data. Please try again.');
+      setReportError(t('reports.errFetch'));
     } finally {
       setIsDownloading(false);
     }
@@ -346,32 +348,47 @@ export default function SurveyApp() {
             <br />
             CHECK
           </h1>
-          <p className="text-sm font-medium opacity-90">Internal Quality Check</p>
+          <p className="text-sm font-medium opacity-90">{t('app.subtitle')}</p>
         </div>
 
         <div className="space-y-3 mb-auto">
           <button onClick={() => setActiveView('evaluation')} className={navButtonClass('evaluation')}>
             <FileText className="w-5 h-5" />
-            Evaluation
+            {t('nav.evaluation')}
           </button>
           <button onClick={() => setActiveView('dashboard')} className={navButtonClass('dashboard')}>
             <LayoutDashboard className="w-5 h-5" />
-            Dashboard
+            {t('nav.dashboard')}
           </button>
           <button onClick={() => setActiveView('reports')} className={navButtonClass('reports')}>
             <Download className="w-5 h-5" />
-            Reports
+            {t('nav.reports')}
           </button>
         </div>
 
-        <div className="bg-[#FF8787] p-5 rounded-2xl mt-8">
+        {/* Language toggle */}
+        <div className="flex bg-white/15 rounded-2xl p-1 mt-8 font-bold text-sm">
+          {(['en', 'th'] as const).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`flex-1 py-2 rounded-xl transition ${
+                lang === l ? 'bg-white text-[#FF6B6B] shadow-sm' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              {l === 'en' ? 'EN' : 'ไทย'}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-[#FF8787] p-5 rounded-2xl mt-4">
           <div className="text-[10px] uppercase tracking-widest font-bold mb-2 opacity-80">
-            Recent Insight
+            {t('insight.title')}
           </div>
           <div className="text-2xl font-bold mb-1">
-            {weeklyFood == null ? 'No data' : `${weeklyFood.toFixed(1)} / 5.0`}
+            {weeklyFood == null ? t('insight.nodata') : `${weeklyFood.toFixed(1)} / 5.0`}
           </div>
-          <p className="text-xs opacity-90">Avg Food Quality this week</p>
+          <p className="text-xs opacity-90">{t('insight.subtitle')}</p>
         </div>
       </div>
 
@@ -382,10 +399,17 @@ export default function SurveyApp() {
           <div>
             <h1 className="text-xl font-black tracking-wide">DINE CHECK</h1>
             <p className="text-[10px] uppercase tracking-widest text-[#FFF9F2] mt-1">
-              Internal Quality Check
+              {t('app.subtitle')}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'th' : 'en')}
+              className="px-2.5 py-2 rounded-lg bg-white/20 text-xs font-black"
+              aria-label="Switch language"
+            >
+              {lang === 'en' ? 'ไทย' : 'EN'}
+            </button>
             <button
               onClick={() => setActiveView('evaluation')}
               className={`p-2 rounded-lg ${activeView === 'evaluation' ? 'bg-white text-[#FF6B6B]' : 'bg-white/20'}`}
@@ -416,16 +440,15 @@ export default function SurveyApp() {
                   <div className="w-24 h-24 bg-[#FFF2F2] text-[#FF6B6B] rounded-full flex items-center justify-center mx-auto mb-6">
                     <Sparkles className="w-12 h-12" />
                   </div>
-                  <h2 className="text-4xl font-black text-[#2D2D2D]">Thank You!</h2>
+                  <h2 className="text-4xl font-black text-[#2D2D2D]">{t('success.title')}</h2>
                   <p className="text-gray-500 max-w-md mx-auto text-xl leading-relaxed">
-                    Your evaluation has been logged. We will review this to refine our dishes and
-                    elevate our service.
+                    {t('success.body')}
                   </p>
                   <button
                     onClick={resetForm}
                     className="mt-8 bg-[#2D2D2D] text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-transform"
                   >
-                    Submit Another
+                    {t('success.another')}
                   </button>
                 </div>
               ) : (
@@ -440,14 +463,14 @@ export default function SurveyApp() {
                   <section className="space-y-6">
                     <div className="border-b-2 border-gray-100 pb-4 mb-4 md:mb-6">
                       <h2 className="text-xl md:text-2xl font-black text-[#2D2D2D] flex items-center gap-2 md:gap-3">
-                        Evaluation Details <span className="text-2xl md:text-3xl">📋</span>
+                        {t('eval.detailsTitle')} <span className="text-2xl md:text-3xl">📋</span>
                       </h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div>
                         <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-1 md:mb-2">
-                          Evaluator Name
+                          {t('field.name')}
                         </label>
                         <input
                           type="text"
@@ -456,7 +479,7 @@ export default function SurveyApp() {
                           value={formData.name}
                           onChange={handleInputChange}
                           className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium"
-                          placeholder="Jane Doe"
+                          placeholder={t('placeholder.name')}
                         />
                       </div>
                       <div>
@@ -464,7 +487,7 @@ export default function SurveyApp() {
                           htmlFor="employeeId"
                           className="block text-sm font-bold text-gray-700 mb-1 md:mb-2"
                         >
-                          Employee ID
+                          {t('field.employeeId')}
                         </label>
                         <input
                           type="text"
@@ -473,12 +496,12 @@ export default function SurveyApp() {
                           value={formData.employeeId}
                           onChange={handleInputChange}
                           className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium"
-                          placeholder="EMP-1234"
+                          placeholder={t('placeholder.employeeId')}
                         />
                       </div>
                       <div className="md:col-span-2">
                         <label htmlFor="date" className="block text-sm font-bold text-gray-700 mb-1 md:mb-2">
-                          Evaluation Date
+                          {t('field.date')}
                         </label>
                         <input
                           type="date"
@@ -497,7 +520,7 @@ export default function SurveyApp() {
                           htmlFor="restaurant"
                           className="block text-sm font-bold text-gray-700 mb-1 md:mb-2"
                         >
-                          Restaurant
+                          {t('field.restaurant')}
                         </label>
                         <select
                           id="restaurant"
@@ -506,7 +529,7 @@ export default function SurveyApp() {
                           onChange={handleInputChange}
                           className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer"
                         >
-                          <option value="">Select a restaurant...</option>
+                          <option value="">{t('select.restaurant')}</option>
                           {RESTAURANTS.map((r) => (
                             <option key={r} value={r}>
                               {r}
@@ -519,7 +542,7 @@ export default function SurveyApp() {
                           htmlFor="timeOfService"
                           className="block text-sm font-bold text-gray-700 mb-1 md:mb-2"
                         >
-                          Time of Service
+                          {t('field.timeOfService')}
                         </label>
                         <select
                           id="timeOfService"
@@ -528,10 +551,10 @@ export default function SurveyApp() {
                           onChange={handleInputChange}
                           className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer"
                         >
-                          <option value="">Select time...</option>
-                          <option value="Breakfast">Breakfast</option>
-                          <option value="Lunch">Lunch</option>
-                          <option value="Dinner">Dinner</option>
+                          <option value="">{t('select.time')}</option>
+                          <option value="Breakfast">{t('time.breakfast')}</option>
+                          <option value="Lunch">{t('time.lunch')}</option>
+                          <option value="Dinner">{t('time.dinner')}</option>
                         </select>
                       </div>
                       <div>
@@ -539,7 +562,7 @@ export default function SurveyApp() {
                           htmlFor="typeOfService"
                           className="block text-sm font-bold text-gray-700 mb-1 md:mb-2"
                         >
-                          Type of Service
+                          {t('field.typeOfService')}
                         </label>
                         <select
                           id="typeOfService"
@@ -548,9 +571,9 @@ export default function SurveyApp() {
                           onChange={handleInputChange}
                           className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer"
                         >
-                          <option value="">Select type...</option>
-                          <option value="A la carte">A la carte</option>
-                          <option value="Buffet">Buffet</option>
+                          <option value="">{t('select.type')}</option>
+                          <option value="A la carte">{t('type.alacarte')}</option>
+                          <option value="Buffet">{t('type.buffet')}</option>
                         </select>
                       </div>
                     </div>
@@ -560,7 +583,7 @@ export default function SurveyApp() {
                   <section className="space-y-4 md:space-y-6 pt-4">
                     <div className="border-b-2 border-gray-100 pb-2 md:pb-4 mb-4 md:mb-6 flex justify-between items-center">
                       <h2 className="text-xl md:text-2xl font-black text-[#2D2D2D] flex items-center gap-2 md:gap-3">
-                        What did you taste today? <span className="text-2xl md:text-3xl">🍲</span>
+                        {t('eval.tasteTitle')} <span className="text-2xl md:text-3xl">🍲</span>
                       </h2>
                     </div>
 
@@ -575,29 +598,29 @@ export default function SurveyApp() {
                             onClick={() => removeTastedItem(index)}
                             className="absolute top-4 right-4 text-red-500 font-bold text-xs md:text-sm bg-red-50 px-2 py-1 md:px-3 md:py-1 rounded-lg md:rounded-xl hover:bg-red-100"
                           >
-                            Remove
+                            {t('item.remove')}
                           </button>
                         )}
 
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1 md:mb-2 mt-4 md:mt-0">
-                            Item Name {index + 1}
+                            {t('item.name', { n: index + 1 })}
                           </label>
                           <input
                             type="text"
                             value={item.itemName}
                             onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
                             className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium"
-                            placeholder="e.g. Tom Yum Goong"
+                            placeholder={t('placeholder.item')}
                           />
                         </div>
 
                         <div className="space-y-4 md:space-y-8">
-                          {renderItemRatingGroup(index, 'foodTaste', 'Food Taste')}
-                          {renderItemRatingGroup(index, 'qualityOfIngredients', 'Quality of Ingredients')}
-                          {renderItemRatingGroup(index, 'freshnessOfFood', 'Freshness of Food')}
-                          {renderItemRatingGroup(index, 'foodTemperature', 'Appropriate Food Temperature')}
-                          {renderItemRatingGroup(index, 'foodPresentation', 'Food Presentation')}
+                          {renderItemRatingGroup(index, 'foodTaste', t('rating.foodTaste'))}
+                          {renderItemRatingGroup(index, 'qualityOfIngredients', t('rating.qualityOfIngredients'))}
+                          {renderItemRatingGroup(index, 'freshnessOfFood', t('rating.freshnessOfFood'))}
+                          {renderItemRatingGroup(index, 'foodTemperature', t('rating.foodTemperature'))}
+                          {renderItemRatingGroup(index, 'foodPresentation', t('rating.foodPresentation'))}
                         </div>
                       </div>
                     ))}
@@ -607,7 +630,7 @@ export default function SurveyApp() {
                       onClick={addTastedItem}
                       className="w-full bg-[#FFF2F2] text-[#FF6B6B] px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:bg-[#ffe5e5] transition flex items-center justify-center gap-2 border-2 border-[#FF6B6B]"
                     >
-                      + ADD ANOTHER ITEM
+                      {t('item.add')}
                     </button>
                   </section>
 
@@ -615,14 +638,14 @@ export default function SurveyApp() {
                   <section className="space-y-4 md:space-y-6 pt-4">
                     <div className="border-b-2 border-gray-100 pb-2 md:pb-4 mb-4 md:mb-6">
                       <h2 className="text-xl md:text-2xl font-black text-[#2D2D2D] flex items-center gap-2 md:gap-3">
-                        Staff Service <span className="text-2xl md:text-3xl">🤵</span>
+                        {t('eval.staffTitle')} <span className="text-2xl md:text-3xl">🤵</span>
                       </h2>
                     </div>
                     <div className="space-y-4 md:space-y-8">
-                      {renderRatingGroup('promptnessOfService', 'Promptness of Service')}
-                      {renderRatingGroup('attentivenessAndCare', 'Attentiveness and Care')}
-                      {renderRatingGroup('cleanliness', 'Cleanliness of the Restaurant')}
-                      {renderRatingGroup('value', 'Value for Money')}
+                      {renderRatingGroup('promptnessOfService', t('rating.promptness'))}
+                      {renderRatingGroup('attentivenessAndCare', t('rating.attentiveness'))}
+                      {renderRatingGroup('cleanliness', t('rating.cleanliness'))}
+                      {renderRatingGroup('value', t('rating.value'))}
                     </div>
                   </section>
 
@@ -630,7 +653,7 @@ export default function SurveyApp() {
                   <section className="space-y-4 md:space-y-6 pt-4">
                     <div className="border-b-2 border-gray-100 pb-2 md:pb-4 mb-4 md:mb-6">
                       <h2 className="text-xl md:text-2xl font-black text-[#2D2D2D] flex items-center gap-2 md:gap-3">
-                        Additional Comments <span className="text-2xl md:text-3xl">📝</span>
+                        {t('eval.commentsTitle')} <span className="text-2xl md:text-3xl">📝</span>
                       </h2>
                     </div>
 
@@ -639,7 +662,7 @@ export default function SurveyApp() {
                         htmlFor="comments"
                         className="block text-sm md:text-base font-bold text-gray-700 mb-2 md:mb-4"
                       >
-                        Detailed feedback &amp; suggestions:
+                        {t('comments.label')}
                       </label>
                       <textarea
                         id="comments"
@@ -648,7 +671,7 @@ export default function SurveyApp() {
                         value={formData.comments}
                         onChange={handleInputChange}
                         className="w-full bg-gray-50 rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-base md:text-lg resize-none"
-                        placeholder="Let us know about the flavor profile, presentation, or any needed adjustments..."
+                        placeholder={t('placeholder.comments')}
                       ></textarea>
                     </div>
                   </section>
@@ -656,7 +679,7 @@ export default function SurveyApp() {
                   {/* Submit Action */}
                   <div className="pt-6 md:pt-10 flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-6 mt-6 md:mt-10 border-t-2 border-gray-100">
                     <div className="text-sm font-bold text-gray-400 italic text-center sm:text-left">
-                      "Your feedback drives our culinary excellence!"
+                      {t('eval.motto')}
                     </div>
                     <button
                       type="submit"
@@ -664,10 +687,10 @@ export default function SurveyApp() {
                       className="w-full sm:w-auto bg-[#2D2D2D] text-white px-8 md:px-12 py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-lg md:text-xl hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2 md:gap-3 disabled:opacity-70 disabled:hover:scale-100 shadow-xl"
                     >
                       {isSubmitting ? (
-                        'SUBMITTING...'
+                        t('eval.submitting')
                       ) : (
                         <>
-                          SUBMIT EVALUATION <Check className="w-5 h-5 md:w-6 md:h-6" />
+                          {t('eval.submit')} <Check className="w-5 h-5 md:w-6 md:h-6" />
                         </>
                       )}
                     </button>
@@ -681,11 +704,9 @@ export default function SurveyApp() {
               <div className="space-y-8">
                 <div className="border-b-2 border-gray-100 pb-4 mb-6">
                   <h2 className="text-3xl font-black text-[#2D2D2D] flex items-center gap-3">
-                    Reports &amp; Exports <span className="text-4xl">📊</span>
+                    {t('reports.title')} <span className="text-4xl">📊</span>
                   </h2>
-                  <p className="text-gray-500 mt-2 text-lg">
-                    Filter evaluation data by date and download it as a CSV file.
-                  </p>
+                  <p className="text-gray-500 mt-2 text-lg">{t('reports.subtitle')}</p>
                 </div>
 
                 <form onSubmit={handleDownloadReport} className="space-y-8">
@@ -701,7 +722,7 @@ export default function SurveyApp() {
                         htmlFor="reportStartDate"
                         className="block text-sm font-bold text-gray-700 mb-2"
                       >
-                        Start Date
+                        {t('reports.start')}
                       </label>
                       <input
                         type="date"
@@ -713,7 +734,7 @@ export default function SurveyApp() {
                     </div>
                     <div>
                       <label htmlFor="reportEndDate" className="block text-sm font-bold text-gray-700 mb-2">
-                        End Date
+                        {t('reports.end')}
                       </label>
                       <input
                         type="date"
@@ -731,10 +752,10 @@ export default function SurveyApp() {
                     className="w-full bg-[#FF6B6B] text-white px-12 py-5 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100 shadow-xl"
                   >
                     {isDownloading ? (
-                      'PREPARING DOWNLOAD...'
+                      t('reports.preparing')
                     ) : (
                       <>
-                        DOWNLOAD CSV <Download className="w-6 h-6" />
+                        {t('reports.download')} <Download className="w-6 h-6" />
                       </>
                     )}
                   </button>
