@@ -1,22 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutDashboard, RefreshCw, Star, UtensilsCrossed } from 'lucide-react';
 import { getSurveysSince } from './supabase';
-import type { StoredSurvey, TastedItem } from './types';
-
-const FOOD_FIELDS: [keyof TastedItem, string][] = [
-  ['foodTaste', 'Food Taste'],
-  ['qualityOfIngredients', 'Quality of Ingredients'],
-  ['freshnessOfFood', 'Freshness of Food'],
-  ['foodTemperature', 'Food Temperature'],
-  ['foodPresentation', 'Food Presentation'],
-];
-
-const SERVICE_FIELDS: [keyof StoredSurvey, string][] = [
-  ['promptnessOfService', 'Promptness of Service'],
-  ['attentivenessAndCare', 'Attentiveness & Care'],
-  ['cleanliness', 'Cleanliness'],
-  ['value', 'Value for Money'],
-];
+import { FOOD_FIELDS, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
+import type { StoredSurvey } from './types';
 
 type Range = { label: string; days: number | null };
 const RANGES: Range[] = [
@@ -25,37 +11,7 @@ const RANGES: Range[] = [
   { label: 'All time', days: null },
 ];
 
-const toNum = (s: string): number | null => {
-  const n = Number(s);
-  return s !== '' && s != null && !Number.isNaN(n) ? n : null;
-};
-
-const mean = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-
 const fmt = (n: number | null): string => (n == null ? '—' : n.toFixed(1));
-
-const startDateFor = (days: number | null): string => {
-  if (days == null) return '1970-01-01';
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split('T')[0];
-};
-
-// All food + service ratings for a single survey, as numbers.
-const surveyRatings = (s: StoredSurvey): number[] => {
-  const out: number[] = [];
-  for (const item of s.tastedItems ?? []) {
-    for (const [f] of FOOD_FIELDS) {
-      const n = toNum(item[f]);
-      if (n != null) out.push(n);
-    }
-  }
-  for (const [f] of SERVICE_FIELDS) {
-    const n = toNum(s[f] as string);
-    if (n != null) out.push(n);
-  }
-  return out;
-};
 
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
   const pct = value == null ? 0 : (value / 5) * 100;

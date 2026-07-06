@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Download, FileText, LayoutDashboard, Sparkles } from 'lucide-react';
-import { getSurveysByDate, submitSurvey } from './supabase';
+import { getSurveysByDate, getSurveysSince, submitSurvey } from './supabase';
+import { avgFoodQuality, startDateFor } from './stats';
 import Dashboard from './Dashboard';
 import type { SurveyData, TastedItem } from './types';
 
@@ -33,6 +34,22 @@ export default function SurveyApp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Live "Recent Insight" for the sidebar: avg food quality over the last 7 days.
+  const [weeklyFood, setWeeklyFood] = useState<number | null>(null);
+
+  const loadWeeklyInsight = useCallback(async () => {
+    try {
+      const recent = await getSurveysSince(startDateFor(7));
+      setWeeklyFood(avgFoodQuality(recent));
+    } catch (err) {
+      console.error('Error loading weekly insight:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadWeeklyInsight();
+  }, [loadWeeklyInsight]);
 
   // Report state
   const [reportStartDate, setReportStartDate] = useState(today());
@@ -147,6 +164,7 @@ export default function SurveyApp() {
     try {
       await submitSurvey(formData);
       setIsSuccess(true);
+      loadWeeklyInsight();
       scrollToTop();
     } catch (error) {
       console.error('Error submitting survey:', error);
@@ -350,7 +368,9 @@ export default function SurveyApp() {
           <div className="text-[10px] uppercase tracking-widest font-bold mb-2 opacity-80">
             Recent Insight
           </div>
-          <div className="text-2xl font-bold mb-1">4.8 / 5.0</div>
+          <div className="text-2xl font-bold mb-1">
+            {weeklyFood == null ? 'No data' : `${weeklyFood.toFixed(1)} / 5.0`}
+          </div>
           <p className="text-xs opacity-90">Avg Food Quality this week</p>
         </div>
       </div>
