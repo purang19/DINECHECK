@@ -1,20 +1,33 @@
 import type { StoredSurvey, TastedItem } from './types';
 
-// Rating fields shared by the dashboard and the sidebar insight card.
-export const FOOD_FIELDS: [keyof TastedItem, string][] = [
-  ['foodTaste', 'Food Taste'],
-  ['qualityOfIngredients', 'Quality of Ingredients'],
-  ['freshnessOfFood', 'Freshness of Food'],
-  ['foodTemperature', 'Food Temperature'],
-  ['foodPresentation', 'Food Presentation'],
+// Rating data fields shared by the dashboard and the sidebar insight card.
+export const FOOD_FIELDS: (keyof TastedItem)[] = [
+  'foodTaste',
+  'qualityOfIngredients',
+  'freshnessOfFood',
+  'foodTemperature',
+  'foodPresentation',
 ];
 
-export const SERVICE_FIELDS: [keyof StoredSurvey, string][] = [
-  ['promptnessOfService', 'Promptness of Service'],
-  ['attentivenessAndCare', 'Attentiveness & Care'],
-  ['cleanliness', 'Cleanliness'],
-  ['value', 'Value for Money'],
+export const SERVICE_FIELDS: (keyof StoredSurvey)[] = [
+  'promptnessOfService',
+  'attentivenessAndCare',
+  'cleanliness',
+  'value',
 ];
+
+// Maps each rating field to its i18n key (labels are translated at render time).
+export const RATING_LABEL_KEY: Record<string, string> = {
+  foodTaste: 'rating.foodTaste',
+  qualityOfIngredients: 'rating.qualityOfIngredients',
+  freshnessOfFood: 'rating.freshnessOfFood',
+  foodTemperature: 'rating.foodTemperature',
+  foodPresentation: 'rating.foodPresentation',
+  promptnessOfService: 'rating.promptness',
+  attentivenessAndCare: 'rating.attentiveness',
+  cleanliness: 'rating.cleanliness',
+  value: 'rating.value',
+};
 
 export const toNum = (s: string): number | null => {
   const n = Number(s);
@@ -29,7 +42,7 @@ export function foodRatings(surveys: StoredSurvey[]): number[] {
   const out: number[] = [];
   for (const s of surveys) {
     for (const item of s.tastedItems ?? []) {
-      for (const [f] of FOOD_FIELDS) {
+      for (const f of FOOD_FIELDS) {
         const n = toNum(item[f]);
         if (n != null) out.push(n);
       }
@@ -44,12 +57,12 @@ export const avgFoodQuality = (surveys: StoredSurvey[]): number | null => mean(f
 export function surveyRatings(s: StoredSurvey): number[] {
   const out: number[] = [];
   for (const item of s.tastedItems ?? []) {
-    for (const [f] of FOOD_FIELDS) {
+    for (const f of FOOD_FIELDS) {
       const n = toNum(item[f]);
       if (n != null) out.push(n);
     }
   }
-  for (const [f] of SERVICE_FIELDS) {
+  for (const f of SERVICE_FIELDS) {
     const n = toNum(s[f] as string);
     if (n != null) out.push(n);
   }

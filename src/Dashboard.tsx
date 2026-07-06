@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutDashboard, RefreshCw, Star, UtensilsCrossed } from 'lucide-react';
 import { getSurveysSince } from './supabase';
-import { FOOD_FIELDS, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
+import { FOOD_FIELDS, RATING_LABEL_KEY, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
+import { useLang } from './i18n';
 import type { StoredSurvey } from './types';
 
-type Range = { label: string; days: number | null };
-const RANGES: Range[] = [
-  { label: 'Last 7 days', days: 7 },
-  { label: 'Last 30 days', days: 30 },
-  { label: 'All time', days: null },
+const RANGES: { key: string; days: number | null }[] = [
+  { key: 'range.7', days: 7 },
+  { key: 'range.30', days: 30 },
+  { key: 'range.all', days: null },
 ];
+
+// Stored (English) time-of-service value → i18n key, for display only.
+const TIME_KEY: Record<string, string> = {
+  Breakfast: 'time.breakfast',
+  Lunch: 'time.lunch',
+  Dinner: 'time.dinner',
+};
 
 const fmt = (n: number | null): string => (n == null ? '—' : n.toFixed(1));
 
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
   const pct = value == null ? 0 : (value / 5) * 100;
   return (
-    <div className="flex items-center gap-3" title={value == null ? 'No data' : `${value.toFixed(2)} / 5`}>
+    <div className="flex items-center gap-3" title={value == null ? '' : `${value.toFixed(2)} / 5`}>
       <span className="w-40 md:w-48 shrink-0 text-sm font-bold text-gray-600">{label}</span>
       <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-[#FF6B6B] rounded-full transition-all"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-[#FF6B6B] rounded-full transition-all" style={{ width: `${pct}%` }} />
       </div>
       <span className="w-10 shrink-0 text-right text-sm font-black text-[#2D2D2D]">{fmt(value)}</span>
     </div>
@@ -40,24 +44,28 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub: st
 }
 
 export default function Dashboard() {
+  const { t } = useLang();
   const [rangeIdx, setRangeIdx] = useState(2); // default: All time
   const [surveys, setSurveys] = useState<StoredSurvey[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async (days: number | null) => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getSurveysSince(startDateFor(days));
-      setSurveys(data);
-    } catch (err) {
-      console.error('Error loading dashboard:', err);
-      setError('Could not load dashboard data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (days: number | null) => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await getSurveysSince(startDateFor(days));
+        setSurveys(data);
+      } catch (err) {
+        console.error('Error loading dashboard:', err);
+        setError(t('dash.errLoad'));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     load(RANGES[rangeIdx].days);
@@ -65,21 +73,21 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     if (!surveys) return null;
-    const foodByField = FOOD_FIELDS.map(([f, label]) => {
+    const foodByField = FOOD_FIELDS.map((f) => {
       const vals: number[] = [];
       for (const s of surveys) for (const item of s.tastedItems ?? []) {
         const n = toNum(item[f]);
         if (n != null) vals.push(n);
       }
-      return { label, value: mean(vals) };
+      return { field: f as string, value: mean(vals) };
     });
-    const serviceByField = SERVICE_FIELDS.map(([f, label]) => {
+    const serviceByField = SERVICE_FIELDS.map((f) => {
       const vals: number[] = [];
       for (const s of surveys) {
         const n = toNum(s[f] as string);
         if (n != null) vals.push(n);
       }
-      return { label, value: mean(vals) };
+      return { field: f as string, value: mean(vals) };
     });
 
     const foodAll = foodByField.flatMap((c) => (c.value == null ? [] : [c.value]));
@@ -87,7 +95,7 @@ export default function Dashboard() {
 
     const restaurants = new Map<string, { ratings: number[]; count: number }>();
     for (const s of surveys) {
-      const key = s.restaurant || 'Unspecified';
+      const key = s.restaurant || '';
       const entry = restaurants.get(key) ?? { ratings: [], count: 0 };
       entry.ratings.push(...surveyRatings(s));
       entry.count += 1;
@@ -119,29 +127,29 @@ export default function Dashboard() {
       <div className="border-b-2 border-gray-100 pb-4 mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black text-[#2D2D2D] flex items-center gap-3">
-            Dashboard <span className="text-4xl">📊</span>
+            {t('dash.title')} <span className="text-4xl">📊</span>
           </h2>
-          <p className="text-gray-500 mt-2 text-lg">Live insights from submitted evaluations.</p>
+          <p className="text-gray-500 mt-2 text-lg">{t('dash.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-gray-100 rounded-2xl p-1">
             {RANGES.map((r, i) => (
               <button
-                key={r.label}
+                key={r.key}
                 onClick={() => setRangeIdx(i)}
                 className={`px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold transition ${
                   rangeIdx === i ? 'bg-white text-[#FF6B6B] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {r.label}
+                {t(r.key)}
               </button>
             ))}
           </div>
           <button
             onClick={() => load(RANGES[rangeIdx].days)}
             className="p-2.5 rounded-xl bg-gray-100 text-gray-500 hover:text-[#FF6B6B] transition"
-            title="Refresh"
-            aria-label="Refresh"
+            title={t('dash.refresh')}
+            aria-label={t('dash.refresh')}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -155,7 +163,7 @@ export default function Dashboard() {
       )}
 
       {loading && !stats && (
-        <div className="py-20 text-center text-gray-400 font-bold">Loading insights…</div>
+        <div className="py-20 text-center text-gray-400 font-bold">{t('dash.loading')}</div>
       )}
 
       {stats && stats.total === 0 && !loading && (
@@ -163,10 +171,8 @@ export default function Dashboard() {
           <div className="w-24 h-24 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
             <LayoutDashboard className="w-12 h-12" />
           </div>
-          <h3 className="text-2xl font-black text-[#2D2D2D]">No evaluations yet</h3>
-          <p className="text-gray-500 max-w-md mx-auto">
-            Once evaluations are submitted for this period, their insights will appear here.
-          </p>
+          <h3 className="text-2xl font-black text-[#2D2D2D]">{t('dash.emptyTitle')}</h3>
+          <p className="text-gray-500 max-w-md mx-auto">{t('dash.emptyBody')}</p>
         </div>
       )}
 
@@ -174,31 +180,35 @@ export default function Dashboard() {
         <div className="space-y-8">
           {/* KPI tiles */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <StatTile label="Evaluations" value={String(stats.total)} sub={`${stats.itemCount} dishes tasted`} />
-            <StatTile label="Food Quality" value={`${fmt(stats.foodQuality)}`} sub="avg out of 5" />
-            <StatTile label="Staff Service" value={`${fmt(stats.service)}`} sub="avg out of 5" />
-            <StatTile label="Overall Score" value={`${fmt(stats.overall)}`} sub="avg out of 5" />
+            <StatTile
+              label={t('kpi.evaluations')}
+              value={String(stats.total)}
+              sub={t('kpi.dishes', { n: stats.itemCount })}
+            />
+            <StatTile label={t('kpi.foodQuality')} value={fmt(stats.foodQuality)} sub={t('kpi.avgOutOf5')} />
+            <StatTile label={t('kpi.service')} value={fmt(stats.service)} sub={t('kpi.avgOutOf5')} />
+            <StatTile label={t('kpi.overall')} value={fmt(stats.overall)} sub={t('kpi.avgOutOf5')} />
           </div>
 
           {/* Category breakdowns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
               <h3 className="font-black text-[#2D2D2D] flex items-center gap-2">
-                <UtensilsCrossed className="w-5 h-5 text-[#FF6B6B]" /> Food Quality
+                <UtensilsCrossed className="w-5 h-5 text-[#FF6B6B]" /> {t('kpi.foodQuality')}
               </h3>
               <div className="space-y-3">
                 {stats.foodByField.map((c) => (
-                  <ScoreBar key={c.label} label={c.label} value={c.value} />
+                  <ScoreBar key={c.field} label={t(RATING_LABEL_KEY[c.field])} value={c.value} />
                 ))}
               </div>
             </div>
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
               <h3 className="font-black text-[#2D2D2D] flex items-center gap-2">
-                <Star className="w-5 h-5 text-[#FF6B6B]" /> Staff Service
+                <Star className="w-5 h-5 text-[#FF6B6B]" /> {t('kpi.service')}
               </h3>
               <div className="space-y-3">
                 {stats.serviceByField.map((c) => (
-                  <ScoreBar key={c.label} label={c.label} value={c.value} />
+                  <ScoreBar key={c.field} label={t(RATING_LABEL_KEY[c.field])} value={c.value} />
                 ))}
               </div>
             </div>
@@ -206,26 +216,33 @@ export default function Dashboard() {
 
           {/* By restaurant */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
-            <h3 className="font-black text-[#2D2D2D]">Average by Restaurant</h3>
+            <h3 className="font-black text-[#2D2D2D]">{t('dash.byRestaurant')}</h3>
             <div className="space-y-3">
               {stats.byRestaurant.map((r) => (
-                <ScoreBar key={r.name} label={`${r.name} (${r.count})`} value={r.avg} />
+                <ScoreBar
+                  key={r.name || 'unspecified'}
+                  label={`${r.name || t('dash.unspecified')} (${r.count})`}
+                  value={r.avg}
+                />
               ))}
             </div>
           </div>
 
           {/* Recent evaluations */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6">
-            <h3 className="font-black text-[#2D2D2D] mb-4">Recent Evaluations</h3>
+            <h3 className="font-black text-[#2D2D2D] mb-4">{t('dash.recent')}</h3>
             <div className="divide-y divide-gray-100">
               {stats.recent.map((s) => {
                 const avg = mean(surveyRatings(s));
+                const time = s.timeOfService ? t(TIME_KEY[s.timeOfService]) || s.timeOfService : '—';
                 return (
                   <div key={s.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <div className="font-bold text-[#2D2D2D] truncate">{s.restaurant || 'Unspecified'}</div>
+                      <div className="font-bold text-[#2D2D2D] truncate">
+                        {s.restaurant || t('dash.unspecified')}
+                      </div>
                       <div className="text-xs text-gray-400 truncate">
-                        {s.date} · {s.name || 'Anonymous'} · {s.timeOfService || '—'}
+                        {s.date} · {s.name || t('dash.anonymous')} · {time}
                       </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-1 bg-[#FFF2F2] text-[#FF6B6B] font-black px-3 py-1.5 rounded-xl">
