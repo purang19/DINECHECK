@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Download, FileText, LayoutDashboard, Sparkles } from 'lucide-react';
 import { getSurveysByDate, submitSurvey } from './supabase';
+import Dashboard from './Dashboard';
 import type { SurveyData, TastedItem } from './types';
 
 const RESTAURANTS = [
@@ -654,17 +655,7 @@ export default function SurveyApp() {
                 </form>
               ))}
 
-            {activeView === 'dashboard' && (
-              <div className="py-20 text-center space-y-6">
-                <div className="w-24 h-24 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <LayoutDashboard className="w-12 h-12" />
-                </div>
-                <h2 className="text-4xl font-black text-[#2D2D2D]">Dashboard</h2>
-                <p className="text-gray-500 max-w-md mx-auto text-xl leading-relaxed">
-                  The dashboard feature is currently in development.
-                </p>
-              </div>
-            )}
+            {activeView === 'dashboard' && <Dashboard />}
 
             {activeView === 'reports' && (
               <div className="space-y-8">
