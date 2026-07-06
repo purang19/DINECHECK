@@ -180,7 +180,7 @@ export default function SurveyApp() {
       <span className="block text-sm md:text-base font-bold text-gray-700 mb-2 md:mb-4">{label}</span>
       <div className="flex justify-between gap-1 md:gap-2">
         {[1, 2, 3, 4, 5].map((rating) => (
-          <label key={`${name}-${rating}`} className="flex-1 text-center cursor-pointer">
+          <label key={`${name}-${rating}`} className="relative flex-1 text-center cursor-pointer">
             <input
               type="radio"
               name={name}
@@ -205,7 +205,7 @@ export default function SurveyApp() {
         <span className="block text-sm md:text-base font-bold text-gray-700 mb-2 md:mb-4">{label}</span>
         <div className="flex justify-between gap-1 md:gap-2">
           {[1, 2, 3, 4, 5].map((rating) => (
-            <label key={`item-${index}-${name}-${rating}`} className="flex-1 text-center cursor-pointer">
+            <label key={`item-${index}-${name}-${rating}`} className="relative flex-1 text-center cursor-pointer">
               <input
                 type="radio"
                 name={`item-${index}-${name}`}
