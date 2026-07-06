@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Download, FileText, LayoutDashboard, Sparkles } from 'lucide-react';
-import { getSurveysByDate, submitSurvey } from './firebase';
+import { getSurveysByDate, submitSurvey } from './supabase';
 import type { SurveyData, TastedItem } from './types';
 
 const RESTAURANTS = [

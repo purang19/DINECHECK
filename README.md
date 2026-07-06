@@ -20,7 +20,7 @@ Submissions are stored in Firebase Firestore and can be exported as CSV for revi
 - React 19 + TypeScript
 - Vite 6
 - Tailwind CSS v4
-- Firebase Firestore
+- Supabase (Postgres)
 - lucide-react icons
 
 ## Run locally
@@ -42,13 +42,15 @@ npm run lint     # type-check with tsc --noEmit
 
 ## Configuration
 
-Firebase config is read from `VITE_*` environment variables (see `.env.example`).
-Copy it to `.env.local` and fill in your own Firebase project to point the app at
-your own Firestore. If you don't, the app falls back to the shared demo project
-defined in `src/firebase.ts`.
+Supabase config is read from `VITE_*` environment variables (see `.env.example`).
+Copy it to `.env.local` and fill in your own project URL and publishable/anon key
+to point the app at your own database. If you don't, the app falls back to the
+shared DINECHECK project defined in `src/supabase.ts`.
 
-Survey documents are written to the `surveys` collection. See `firestore.rules`
-for the security model (create-only from the client).
+Submissions are stored in the `public.surveys` table. The schema and row-level
+security policies live in `supabase/migrations/0001_create_surveys.sql`. RLS
+currently allows anonymous insert and select (an internal tool with no end-user
+auth) — add authentication before exposing it outside a trusted network.
 
 ## Project structure
 
@@ -58,8 +60,9 @@ src/
   main.tsx            # React root
   App.tsx             # App shell
   SurveyApp.tsx       # The full survey / dashboard / reports UI
-  firebase.ts         # Firestore init + submit/query helpers
+  supabase.ts         # Supabase client + submit/query helpers
   types.ts            # Survey data types
   index.css           # Tailwind entry
-firestore.rules       # Firestore security rules
+supabase/
+  migrations/         # SQL schema + RLS policies
 ```
