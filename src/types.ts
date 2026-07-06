@@ -1,0 +1,28 @@
+export interface TastedItem {
+  itemName: string;
+  foodTaste: string;
+  qualityOfIngredients: string;
+  freshnessOfFood: string;
+  foodTemperature: string;
+  foodPresentation: string;
+}
+
+export interface SurveyData {
+  date: string;
+  name: string;
+  employeeId: string;
+  restaurant: string;
+  timeOfService: string;
+  typeOfService: string;
+  tastedItems: TastedItem[];
+  promptnessOfService: string;
+  attentivenessAndCare: string;
+  cleanliness: string;
+  value: string;
+  comments: string;
+}
+
+export interface StoredSurvey extends SurveyData {
+  id: string;
+  createdAt: string;
+}
