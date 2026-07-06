@@ -66,3 +66,15 @@ export async function getSurveysByDate(startDate: string, endDate: string): Prom
   if (error) throw error;
   return (data ?? []).map(fromRow);
 }
+
+// Surveys on or after startDate, newest first — used by the dashboard.
+export async function getSurveysSince(startDate: string): Promise<StoredSurvey[]> {
+  const { data, error } = await supabase
+    .from('surveys')
+    .select('*')
+    .gte('date', startDate)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(fromRow);
+}
