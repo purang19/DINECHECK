@@ -1,0 +1,7 @@
+project_id = "kjcqkgaevjkrdrwzplov"
+
+# The notify-telegram function is called by a database trigger (pg_net), not by
+# an authenticated user, so it does not verify a Supabase JWT. It is protected
+# instead by the x-webhook-secret shared header.
+[functions.notify-telegram]
+verify_jwt = false
