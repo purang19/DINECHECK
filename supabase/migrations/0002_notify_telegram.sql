@@ -27,7 +27,8 @@ begin
       'Content-Type', 'application/json',
       'x-webhook-secret', coalesce(secret, '')
     ),
-    body := jsonb_build_object('record', to_jsonb(new))
+    body := jsonb_build_object('record', to_jsonb(new)),
+    timeout_milliseconds := 15000
   );
   return new;
 end;
