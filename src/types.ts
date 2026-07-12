@@ -5,6 +5,7 @@ export interface TastedItem {
   freshnessOfFood: string;
   foodTemperature: string;
   foodPresentation: string;
+  imageUrl?: string;
 }
 
 export interface SurveyData {

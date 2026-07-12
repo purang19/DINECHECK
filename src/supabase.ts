@@ -67,6 +67,18 @@ export async function getSurveysByDate(startDate: string, endDate: string): Prom
   return (data ?? []).map(fromRow);
 }
 
+// Uploads a dish photo to the public menu-photos bucket and returns its URL.
+export async function uploadMenuPhoto(file: File): Promise<string> {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, {
+    contentType: file.type || 'image/jpeg',
+    upsert: false,
+  });
+  if (error) throw error;
+  return supabase.storage.from('menu-photos').getPublicUrl(path).data.publicUrl;
+}
+
 // Surveys on or after startDate, newest first — used by the dashboard.
 export async function getSurveysSince(startDate: string): Promise<StoredSurvey[]> {
   const { data, error } = await supabase

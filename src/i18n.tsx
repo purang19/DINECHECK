@@ -98,6 +98,20 @@ const en: Dict = {
   'dash.unspecified': 'Unspecified',
   'dash.anonymous': 'Anonymous',
   'dash.errLoad': 'Could not load dashboard data. Please try again.',
+
+  // Photos & Summary
+  'field.photo': 'Photo (optional)',
+  'photo.add': 'Add photo',
+  'photo.change': 'Change photo',
+  'photo.remove': 'Remove photo',
+  'photo.uploading': 'Uploading photos…',
+  'err.upload': 'Could not upload a photo. Please try again.',
+  'nav.summary': 'Summary',
+  'summary.title': 'Menu Summary',
+  'summary.subtitle': 'Dishes, photos, and comments from submitted evaluations.',
+  'summary.noPhoto': 'No photo',
+  'summary.comment': 'Comment',
+  'summary.noComment': 'No comment',
 };
 
 const th: Dict = {
@@ -186,6 +200,20 @@ const th: Dict = {
   'dash.unspecified': 'ไม่ระบุ',
   'dash.anonymous': 'ไม่ระบุชื่อ',
   'dash.errLoad': 'ไม่สามารถโหลดข้อมูลแดชบอร์ดได้ กรุณาลองใหม่อีกครั้ง',
+
+  // Photos & Summary
+  'field.photo': 'รูปภาพ (ไม่บังคับ)',
+  'photo.add': 'เพิ่มรูปภาพ',
+  'photo.change': 'เปลี่ยนรูปภาพ',
+  'photo.remove': 'ลบรูปภาพ',
+  'photo.uploading': 'กำลังอัปโหลดรูปภาพ…',
+  'err.upload': 'ไม่สามารถอัปโหลดรูปภาพได้ กรุณาลองใหม่อีกครั้ง',
+  'nav.summary': 'สรุป',
+  'summary.title': 'สรุปเมนู',
+  'summary.subtitle': 'เมนู รูปภาพ และความคิดเห็นจากการประเมินที่ส่งเข้ามา',
+  'summary.noPhoto': 'ไม่มีรูปภาพ',
+  'summary.comment': 'ความคิดเห็น',
+  'summary.noComment': 'ไม่มีความคิดเห็น',
 };
 
 const DICTS: Record<Lang, Dict> = { en, th };

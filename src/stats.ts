@@ -1,7 +1,15 @@
-import type { StoredSurvey, TastedItem } from './types';
+import type { StoredSurvey } from './types';
 
 // Rating data fields shared by the dashboard and the sidebar insight card.
-export const FOOD_FIELDS: (keyof TastedItem)[] = [
+// Narrowed to the five metric keys (excludes optional fields like imageUrl).
+export type FoodMetric =
+  | 'foodTaste'
+  | 'qualityOfIngredients'
+  | 'freshnessOfFood'
+  | 'foodTemperature'
+  | 'foodPresentation';
+
+export const FOOD_FIELDS: FoodMetric[] = [
   'foodTaste',
   'qualityOfIngredients',
   'freshnessOfFood',
