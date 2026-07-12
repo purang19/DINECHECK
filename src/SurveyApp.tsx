@@ -312,7 +312,8 @@ export default function SurveyApp() {
       }
 
       const csvString = csvRows.join('\n');
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      // Prepend a UTF-8 BOM so Excel detects the encoding and renders Thai correctly.
+      const blob = new Blob(['﻿' + csvString], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
 
       const link = document.createElement('a');
