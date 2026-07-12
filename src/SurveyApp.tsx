@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Check, Download, FileText, LayoutDashboard, Sparkles } from 'lucide-react';
-import { getSurveysByDate, getSurveysSince, submitSurvey } from './supabase';
+import { Check, Download, FileText, Images, ImagePlus, LayoutDashboard, Sparkles } from 'lucide-react';
+import { getSurveysByDate, getSurveysSince, submitSurvey, uploadMenuPhoto } from './supabase';
 import { avgFoodQuality, startDateFor } from './stats';
 import Dashboard from './Dashboard';
+import Summary from './Summary';
 import { useLang } from './i18n';
 import type { SurveyData, TastedItem } from './types';
 
@@ -31,7 +32,9 @@ type StaffRatingField = 'promptnessOfService' | 'attentivenessAndCare' | 'cleanl
 
 export default function SurveyApp() {
   const { lang, setLang, t } = useLang();
-  const [activeView, setActiveView] = useState<'evaluation' | 'dashboard' | 'reports'>('evaluation');
+  const [activeView, setActiveView] = useState<'evaluation' | 'dashboard' | 'reports' | 'summary'>(
+    'evaluation',
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -74,6 +77,24 @@ export default function SurveyApp() {
     comments: '',
   });
 
+  // Selected photo File + preview URL per tasted item, kept in sync with tastedItems.
+  const [itemFiles, setItemFiles] = useState<(File | null)[]>([null]);
+  const [itemPreviews, setItemPreviews] = useState<(string | null)[]>([null]);
+
+  const handleItemFile = (index: number, file: File | null) => {
+    setItemFiles((prev) => {
+      const a = [...prev];
+      a[index] = file;
+      return a;
+    });
+    setItemPreviews((prev) => {
+      const a = [...prev];
+      if (a[index]) URL.revokeObjectURL(a[index] as string);
+      a[index] = file ? URL.createObjectURL(file) : null;
+      return a;
+    });
+  };
+
   const handleRadioChange = (name: StaffRatingField, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -88,6 +109,8 @@ export default function SurveyApp() {
 
   const addTastedItem = () => {
     setFormData((prev) => ({ ...prev, tastedItems: [...prev.tastedItems, emptyItem()] }));
+    setItemFiles((prev) => [...prev, null]);
+    setItemPreviews((prev) => [...prev, null]);
   };
 
   const removeTastedItem = (index: number) => {
@@ -96,6 +119,17 @@ export default function SurveyApp() {
         const newItems = [...prev.tastedItems];
         newItems.splice(index, 1);
         return { ...prev, tastedItems: newItems };
+      });
+      setItemFiles((prev) => {
+        const a = [...prev];
+        a.splice(index, 1);
+        return a;
+      });
+      setItemPreviews((prev) => {
+        const a = [...prev];
+        if (a[index]) URL.revokeObjectURL(a[index] as string);
+        a.splice(index, 1);
+        return a;
       });
     }
   };
@@ -163,8 +197,28 @@ export default function SurveyApp() {
 
     setIsSubmitting(true);
     setErrorMsg('');
+
+    // Upload any selected dish photos first, attaching their URLs to the items.
+    let itemsWithPhotos: TastedItem[];
     try {
-      await submitSurvey(formData);
+      itemsWithPhotos = await Promise.all(
+        formData.tastedItems.map(async (item, i) => {
+          const file = itemFiles[i];
+          if (!file) return item;
+          const imageUrl = await uploadMenuPhoto(file);
+          return { ...item, imageUrl };
+        }),
+      );
+    } catch (uploadErr) {
+      console.error('Error uploading photo:', uploadErr);
+      setErrorMsg(t('err.upload'));
+      scrollToTop();
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await submitSurvey({ ...formData, tastedItems: itemsWithPhotos });
       setIsSuccess(true);
       loadWeeklyInsight();
       scrollToTop();
@@ -194,6 +248,11 @@ export default function SurveyApp() {
       value: '',
       comments: '',
     }));
+    setItemPreviews((prev) => {
+      prev.forEach((p) => p && URL.revokeObjectURL(p));
+      return [null];
+    });
+    setItemFiles([null]);
   };
 
   const renderRatingGroup = (name: StaffRatingField, label: string) => (
@@ -365,6 +424,10 @@ export default function SurveyApp() {
             <Download className="w-5 h-5" />
             {t('nav.reports')}
           </button>
+          <button onClick={() => setActiveView('summary')} className={navButtonClass('summary')}>
+            <Images className="w-5 h-5" />
+            {t('nav.summary')}
+          </button>
         </div>
 
         {/* Language toggle */}
@@ -428,6 +491,12 @@ export default function SurveyApp() {
               className={`p-2 rounded-lg ${activeView === 'reports' ? 'bg-white text-[#FF6B6B]' : 'bg-white/20'}`}
             >
               <Download className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setActiveView('summary')}
+              className={`p-2 rounded-lg ${activeView === 'summary' ? 'bg-white text-[#FF6B6B]' : 'bg-white/20'}`}
+            >
+              <Images className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -616,6 +685,48 @@ export default function SurveyApp() {
                           />
                         </div>
 
+                        {/* Dish photo (optional) */}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1 md:mb-2">
+                            {t('field.photo')}
+                          </label>
+                          {itemPreviews[index] ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={itemPreviews[index] as string}
+                                alt=""
+                                className="w-20 h-20 object-cover rounded-xl border border-gray-100"
+                              />
+                              <label className="cursor-pointer text-[#FF6B6B] font-bold text-sm bg-[#FFF2F2] px-3 py-2 rounded-xl hover:bg-[#ffe5e5]">
+                                {t('photo.change')}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleItemFile(index, e.target.files?.[0] ?? null)}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleItemFile(index, null)}
+                                className="text-red-500 font-bold text-sm"
+                              >
+                                {t('photo.remove')}
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer flex items-center justify-center gap-2 w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl md:rounded-2xl p-4 text-gray-500 font-bold hover:border-[#FF6B6B] hover:text-[#FF6B6B] transition">
+                              <ImagePlus className="w-5 h-5" /> {t('photo.add')}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleItemFile(index, e.target.files?.[0] ?? null)}
+                              />
+                            </label>
+                          )}
+                        </div>
+
                         <div className="space-y-4 md:space-y-8">
                           {renderItemRatingGroup(index, 'foodTaste', t('rating.foodTaste'))}
                           {renderItemRatingGroup(index, 'qualityOfIngredients', t('rating.qualityOfIngredients'))}
@@ -700,6 +811,8 @@ export default function SurveyApp() {
               ))}
 
             {activeView === 'dashboard' && <Dashboard />}
+
+            {activeView === 'summary' && <Summary />}
 
             {activeView === 'reports' && (
               <div className="space-y-8">

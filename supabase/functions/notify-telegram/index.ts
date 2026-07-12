@@ -85,12 +85,20 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     const record: Survey = payload.record ?? payload;
     const text = buildMessage(record);
+    const photo = (record.tasted_items ?? []).map((i) => i.imageUrl).find((u) => !!u);
 
-    const tg = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text, disable_web_page_preview: true }),
-    });
+    // Send the first dish photo with the summary as its caption; else text-only.
+    const tg = photo
+      ? await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: CHAT_ID, photo, caption: text }),
+        })
+      : await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: CHAT_ID, text, disable_web_page_preview: true }),
+        });
     const body = await tg.text();
     if (!tg.ok) console.error('Telegram error', tg.status, body);
     else console.log('Telegram sent', body);
