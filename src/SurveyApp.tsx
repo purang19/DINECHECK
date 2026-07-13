@@ -4,17 +4,9 @@ import { getSurveysByDate, getSurveysSince, submitSurvey, uploadMenuPhoto } from
 import { avgFoodQuality, startDateFor } from './stats';
 import Dashboard from './Dashboard';
 import Summary from './Summary';
+import { HOTELS, outletsForHotel } from './hotels';
 import { useLang } from './i18n';
 import type { SurveyData, TastedItem } from './types';
-
-const RESTAURANTS = [
-  'Floating Market Restaurant',
-  'Talay Restaurant',
-  'Manta Ray Bistro',
-  'CocoVan',
-  'Room Service',
-  'Banquet & Function',
-];
 
 const emptyItem = (): TastedItem => ({
   itemName: '',
@@ -66,6 +58,7 @@ export default function SurveyApp() {
     date: today(),
     name: '',
     employeeId: '',
+    hotel: '',
     restaurant: '',
     timeOfService: '',
     typeOfService: '',
@@ -141,6 +134,12 @@ export default function SurveyApp() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Changing hotel clears the selected outlet (outlets differ per hotel).
+  const handleHotelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const hotel = e.target.value;
+    setFormData((prev) => ({ ...prev, hotel, restaurant: '' }));
+  };
+
   const scrollToTop = () => {
     document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -150,6 +149,7 @@ export default function SurveyApp() {
       !formData.name ||
       !formData.employeeId ||
       !formData.date ||
+      !formData.hotel ||
       !formData.restaurant ||
       !formData.timeOfService ||
       !formData.typeOfService
@@ -238,6 +238,7 @@ export default function SurveyApp() {
       date: today(),
       name: prev.name,
       employeeId: prev.employeeId,
+      hotel: '',
       restaurant: '',
       timeOfService: '',
       typeOfService: '',
@@ -324,6 +325,7 @@ export default function SurveyApp() {
         'Date',
         'Name',
         'Employee ID',
+        'Hotel',
         'Restaurant',
         'Time of Service',
         'Type of Service',
@@ -350,6 +352,7 @@ export default function SurveyApp() {
             survey.date,
             survey.name,
             survey.employeeId,
+            survey.hotel,
             survey.restaurant,
             survey.timeOfService,
             survey.typeOfService,
@@ -586,6 +589,25 @@ export default function SurveyApp() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pt-2">
                       <div className="md:col-span-2">
+                        <label htmlFor="hotel" className="block text-sm font-bold text-gray-700 mb-1 md:mb-2">
+                          {t('field.hotel')}
+                        </label>
+                        <select
+                          id="hotel"
+                          name="hotel"
+                          value={formData.hotel}
+                          onChange={handleHotelChange}
+                          className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer"
+                        >
+                          <option value="">{t('select.hotel')}</option>
+                          {HOTELS.map((h) => (
+                            <option key={h.name} value={h.name}>
+                              {h.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
                         <label
                           htmlFor="restaurant"
                           className="block text-sm font-bold text-gray-700 mb-1 md:mb-2"
@@ -597,10 +619,11 @@ export default function SurveyApp() {
                           name="restaurant"
                           value={formData.restaurant}
                           onChange={handleInputChange}
-                          className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer"
+                          disabled={!formData.hotel}
+                          className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 md:border-4 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           <option value="">{t('select.restaurant')}</option>
-                          {RESTAURANTS.map((r) => (
+                          {outletsForHotel(formData.hotel).map((r) => (
                             <option key={r} value={r}>
                               {r}
                             </option>
