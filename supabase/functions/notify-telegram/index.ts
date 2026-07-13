@@ -12,6 +12,7 @@ interface Survey {
   date?: string;
   name?: string;
   employee_id?: string;
+  hotel?: string;
   restaurant?: string;
   time_of_service?: string;
   type_of_service?: string;
@@ -60,7 +61,8 @@ function buildMessage(s: Survey): string {
 
   return [
     '🍽️ New Dine Check evaluation',
-    `Restaurant: ${s.restaurant || '—'}${meta ? ' · ' + meta : ''}`,
+    `Hotel: ${s.hotel || '—'}`,
+    `Outlet: ${s.restaurant || '—'}${meta ? ' · ' + meta : ''}`,
     `Evaluator: ${s.name || 'Anonymous'}${s.employee_id ? ` (${s.employee_id})` : ''} — ${s.date || ''}`,
     `⭐ Food ${fmt(foodAvg)}/5 · Service ${fmt(serviceAvg)}/5 · Overall ${fmt(overall)}/5`,
     `Items: ${items}`,

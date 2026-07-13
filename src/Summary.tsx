@@ -103,6 +103,11 @@ export default function Summary() {
                 {/* Card header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
+                    {s.hotel && (
+                      <div className="text-[10px] uppercase tracking-widest font-bold text-[#FF6B6B] mb-0.5 truncate">
+                        {s.hotel}
+                      </div>
+                    )}
                     <div className="text-lg font-black text-[#2D2D2D] truncate">
                       {s.restaurant || t('dash.unspecified')}
                       {meta && <span className="text-gray-400 font-bold"> · {meta}</span>}

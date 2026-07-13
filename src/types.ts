@@ -12,6 +12,7 @@ export interface SurveyData {
   date: string;
   name: string;
   employeeId: string;
+  hotel: string;
   restaurant: string;
   timeOfService: string;
   typeOfService: string;

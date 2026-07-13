@@ -93,17 +93,22 @@ export default function Dashboard() {
     const foodAll = foodByField.flatMap((c) => (c.value == null ? [] : [c.value]));
     const serviceAll = serviceByField.flatMap((c) => (c.value == null ? [] : [c.value]));
 
-    const restaurants = new Map<string, { ratings: number[]; count: number }>();
-    for (const s of surveys) {
-      const key = s.restaurant || '';
-      const entry = restaurants.get(key) ?? { ratings: [], count: 0 };
-      entry.ratings.push(...surveyRatings(s));
-      entry.count += 1;
-      restaurants.set(key, entry);
-    }
-    const byRestaurant = [...restaurants.entries()]
-      .map(([name, e]) => ({ name, avg: mean(e.ratings), count: e.count }))
-      .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+    // Average score grouped by a chosen key (hotel or outlet).
+    const groupAvg = (keyOf: (s: StoredSurvey) => string) => {
+      const groups = new Map<string, { ratings: number[]; count: number }>();
+      for (const s of surveys) {
+        const key = keyOf(s) || '';
+        const entry = groups.get(key) ?? { ratings: [], count: 0 };
+        entry.ratings.push(...surveyRatings(s));
+        entry.count += 1;
+        groups.set(key, entry);
+      }
+      return [...groups.entries()]
+        .map(([name, e]) => ({ name, avg: mean(e.ratings), count: e.count }))
+        .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+    };
+    const byHotel = groupAvg((s) => s.hotel);
+    const byRestaurant = groupAvg((s) => s.restaurant);
 
     const itemCount = surveys.reduce((acc, s) => acc + (s.tastedItems?.length ?? 0), 0);
     const recent = surveys.slice(0, 6);
@@ -116,6 +121,7 @@ export default function Dashboard() {
       foodQuality: mean(foodAll),
       service: mean(serviceAll),
       overall: mean([...foodAll, ...serviceAll]),
+      byHotel,
       byRestaurant,
       recent,
     };
@@ -214,7 +220,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* By restaurant */}
+          {/* By hotel */}
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
+            <h3 className="font-black text-[#2D2D2D]">{t('dash.byHotel')}</h3>
+            <div className="space-y-3">
+              {stats.byHotel.map((r) => (
+                <ScoreBar
+                  key={r.name || 'unspecified'}
+                  label={`${r.name || t('dash.unspecified')} (${r.count})`}
+                  value={r.avg}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* By outlet */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
             <h3 className="font-black text-[#2D2D2D]">{t('dash.byRestaurant')}</h3>
             <div className="space-y-3">
