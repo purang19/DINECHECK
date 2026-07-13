@@ -17,6 +17,7 @@ interface Survey {
   time_of_service?: string;
   type_of_service?: string;
   tasted_items?: Item[];
+  beverage_items?: Item[];
   promptness_of_service?: number | null;
   attentiveness_and_care?: number | null;
   cleanliness?: number | null;
@@ -31,6 +32,8 @@ const FOOD_FIELDS = [
   'foodTemperature',
   'foodPresentation',
 ];
+
+const BEVERAGE_FIELDS = ['drinkQuality', 'drinkFlavorBalance', 'responseTime'];
 
 const num = (v: unknown): number | null => {
   const n = Number(v);
@@ -47,27 +50,43 @@ function buildMessage(s: Survey): string {
       if (n != null) food.push(n);
     }
   }
+  const beverage: number[] = [];
+  for (const it of s.beverage_items ?? []) {
+    for (const f of BEVERAGE_FIELDS) {
+      const n = num(it[f]);
+      if (n != null) beverage.push(n);
+    }
+  }
   const service: number[] = [];
   for (const v of [s.promptness_of_service, s.attentiveness_and_care, s.cleanliness, s.value]) {
     const n = num(v);
     if (n != null) service.push(n);
   }
   const foodAvg = mean(food);
+  const beverageAvg = mean(beverage);
   const serviceAvg = mean(service);
-  const overall = mean([...food, ...service]);
+  const overall = mean([...food, ...beverage, ...service]);
   const items = (s.tasted_items ?? []).map((i) => i.itemName).filter(Boolean).join(', ') || '—';
+  const drinks = (s.beverage_items ?? []).map((i) => i.itemName).filter(Boolean).join(', ');
   const meta = [s.time_of_service, s.type_of_service].filter(Boolean).join(' · ');
   const comment = (s.comments ?? '').trim();
 
-  return [
+  const scoreLine =
+    beverageAvg != null
+      ? `⭐ Food ${fmt(foodAvg)}/5 · Beverage ${fmt(beverageAvg)}/5 · Service ${fmt(serviceAvg)}/5 · Overall ${fmt(overall)}/5`
+      : `⭐ Food ${fmt(foodAvg)}/5 · Service ${fmt(serviceAvg)}/5 · Overall ${fmt(overall)}/5`;
+
+  const lines = [
     '🍽️ New Dine Check evaluation',
     `Hotel: ${s.hotel || '—'}`,
     `Outlet: ${s.restaurant || '—'}${meta ? ' · ' + meta : ''}`,
     `Evaluator: ${s.name || 'Anonymous'}${s.employee_id ? ` (${s.employee_id})` : ''} — ${s.date || ''}`,
-    `⭐ Food ${fmt(foodAvg)}/5 · Service ${fmt(serviceAvg)}/5 · Overall ${fmt(overall)}/5`,
+    scoreLine,
     `Items: ${items}`,
-    `💬 ${comment ? `"${comment}"` : '—'}`,
-  ].join('\n');
+  ];
+  if (drinks) lines.push(`Drinks: ${drinks}`);
+  lines.push(`💬 ${comment ? `"${comment}"` : '—'}`);
+  return lines.join('\n');
 }
 
 Deno.serve(async (req) => {
@@ -87,7 +106,9 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     const record: Survey = payload.record ?? payload;
     const text = buildMessage(record);
-    const photo = (record.tasted_items ?? []).map((i) => i.imageUrl).find((u) => !!u);
+    const photo = [...(record.tasted_items ?? []), ...(record.beverage_items ?? [])]
+      .map((i) => i.imageUrl)
+      .find((u) => !!u);
 
     // Send the first dish photo with the summary as its caption; else text-only.
     const tg = photo

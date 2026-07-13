@@ -17,6 +17,10 @@ export const FOOD_FIELDS: FoodMetric[] = [
   'foodPresentation',
 ];
 
+export type BeverageMetric = 'drinkQuality' | 'drinkFlavorBalance' | 'responseTime';
+
+export const BEVERAGE_FIELDS: BeverageMetric[] = ['drinkQuality', 'drinkFlavorBalance', 'responseTime'];
+
 export const SERVICE_FIELDS: (keyof StoredSurvey)[] = [
   'promptnessOfService',
   'attentivenessAndCare',
@@ -31,6 +35,9 @@ export const RATING_LABEL_KEY: Record<string, string> = {
   freshnessOfFood: 'rating.freshnessOfFood',
   foodTemperature: 'rating.foodTemperature',
   foodPresentation: 'rating.foodPresentation',
+  drinkQuality: 'rating.drinkQuality',
+  drinkFlavorBalance: 'rating.drinkFlavorBalance',
+  responseTime: 'rating.responseTime',
   promptnessOfService: 'rating.promptness',
   attentivenessAndCare: 'rating.attentiveness',
   cleanliness: 'rating.cleanliness',
@@ -61,11 +68,31 @@ export function foodRatings(surveys: StoredSurvey[]): number[] {
 
 export const avgFoodQuality = (surveys: StoredSurvey[]): number | null => mean(foodRatings(surveys));
 
-// All food + service ratings for a single survey, as numbers.
+// Every beverage rating (all metrics, all beverage items) across the surveys.
+export function beverageRatings(surveys: StoredSurvey[]): number[] {
+  const out: number[] = [];
+  for (const s of surveys) {
+    for (const item of s.beverageItems ?? []) {
+      for (const f of BEVERAGE_FIELDS) {
+        const n = toNum(item[f]);
+        if (n != null) out.push(n);
+      }
+    }
+  }
+  return out;
+}
+
+// All food + beverage + service ratings for a single survey, as numbers.
 export function surveyRatings(s: StoredSurvey): number[] {
   const out: number[] = [];
   for (const item of s.tastedItems ?? []) {
     for (const f of FOOD_FIELDS) {
+      const n = toNum(item[f]);
+      if (n != null) out.push(n);
+    }
+  }
+  for (const item of s.beverageItems ?? []) {
+    for (const f of BEVERAGE_FIELDS) {
       const n = toNum(item[f]);
       if (n != null) out.push(n);
     }
