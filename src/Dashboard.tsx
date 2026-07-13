@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutDashboard, RefreshCw, Star, UtensilsCrossed } from 'lucide-react';
 import { getSurveysSince } from './supabase';
 import { FOOD_FIELDS, RATING_LABEL_KEY, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
+import { HOTELS } from './hotels';
 import { useLang } from './i18n';
 import type { StoredSurvey } from './types';
 
@@ -46,6 +47,7 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub: st
 export default function Dashboard() {
   const { t } = useLang();
   const [rangeIdx, setRangeIdx] = useState(2); // default: All time
+  const [hotelFilter, setHotelFilter] = useState(''); // '' = all hotels
   const [surveys, setSurveys] = useState<StoredSurvey[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,9 +75,10 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     if (!surveys) return null;
+    const scoped = hotelFilter ? surveys.filter((s) => s.hotel === hotelFilter) : surveys;
     const foodByField = FOOD_FIELDS.map((f) => {
       const vals: number[] = [];
-      for (const s of surveys) for (const item of s.tastedItems ?? []) {
+      for (const s of scoped) for (const item of s.tastedItems ?? []) {
         const n = toNum(item[f]);
         if (n != null) vals.push(n);
       }
@@ -83,7 +86,7 @@ export default function Dashboard() {
     });
     const serviceByField = SERVICE_FIELDS.map((f) => {
       const vals: number[] = [];
-      for (const s of surveys) {
+      for (const s of scoped) {
         const n = toNum(s[f] as string);
         if (n != null) vals.push(n);
       }
@@ -96,7 +99,7 @@ export default function Dashboard() {
     // Average score grouped by a chosen key (hotel or outlet).
     const groupAvg = (keyOf: (s: StoredSurvey) => string) => {
       const groups = new Map<string, { ratings: number[]; count: number }>();
-      for (const s of surveys) {
+      for (const s of scoped) {
         const key = keyOf(s) || '';
         const entry = groups.get(key) ?? { ratings: [], count: 0 };
         entry.ratings.push(...surveyRatings(s));
@@ -110,11 +113,11 @@ export default function Dashboard() {
     const byHotel = groupAvg((s) => s.hotel);
     const byRestaurant = groupAvg((s) => s.restaurant);
 
-    const itemCount = surveys.reduce((acc, s) => acc + (s.tastedItems?.length ?? 0), 0);
-    const recent = surveys.slice(0, 6);
+    const itemCount = scoped.reduce((acc, s) => acc + (s.tastedItems?.length ?? 0), 0);
+    const recent = scoped.slice(0, 6);
 
     return {
-      total: surveys.length,
+      total: scoped.length,
       itemCount,
       foodByField,
       serviceByField,
@@ -125,7 +128,7 @@ export default function Dashboard() {
       byRestaurant,
       recent,
     };
-  }, [surveys]);
+  }, [surveys, hotelFilter]);
 
   return (
     <div className="space-y-8">
@@ -137,7 +140,20 @@ export default function Dashboard() {
           </h2>
           <p className="text-gray-500 mt-2 text-lg">{t('dash.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={hotelFilter}
+            onChange={(e) => setHotelFilter(e.target.value)}
+            aria-label={t('field.hotel')}
+            className="bg-gray-100 rounded-2xl px-3 py-2.5 text-xs md:text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-[#FF6B6B] cursor-pointer"
+          >
+            <option value="">{t('dash.allHotels')}</option>
+            {HOTELS.map((h) => (
+              <option key={h.name} value={h.name}>
+                {h.name}
+              </option>
+            ))}
+          </select>
           <div className="flex bg-gray-100 rounded-2xl p-1">
             {RANGES.map((r, i) => (
               <button
@@ -220,19 +236,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* By hotel */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
-            <h3 className="font-black text-[#2D2D2D]">{t('dash.byHotel')}</h3>
-            <div className="space-y-3">
-              {stats.byHotel.map((r) => (
-                <ScoreBar
-                  key={r.name || 'unspecified'}
-                  label={`${r.name || t('dash.unspecified')} (${r.count})`}
-                  value={r.avg}
-                />
-              ))}
+          {/* By hotel (hidden when already filtered to one hotel) */}
+          {!hotelFilter && (
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
+              <h3 className="font-black text-[#2D2D2D]">{t('dash.byHotel')}</h3>
+              <div className="space-y-3">
+                {stats.byHotel.map((r) => (
+                  <ScoreBar
+                    key={r.name || 'unspecified'}
+                    label={`${r.name || t('dash.unspecified')} (${r.count})`}
+                    value={r.avg}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* By outlet */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
