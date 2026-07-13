@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ImageOff, Star } from 'lucide-react';
 import { getSurveysSince } from './supabase';
 import { mean, startDateFor, surveyRatings } from './stats';
+import { HOTELS } from './hotels';
 import { useLang } from './i18n';
 import type { StoredSurvey } from './types';
 
@@ -22,6 +23,7 @@ const fmt = (n: number | null): string => (n == null ? '—' : n.toFixed(1));
 export default function Summary() {
   const { t } = useLang();
   const [rangeIdx, setRangeIdx] = useState(2); // default: All time
+  const [hotelFilter, setHotelFilter] = useState(''); // '' = all hotels
   const [surveys, setSurveys] = useState<StoredSurvey[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,6 +48,12 @@ export default function Summary() {
     load(RANGES[rangeIdx].days);
   }, [rangeIdx, load]);
 
+  const visible = surveys
+    ? hotelFilter
+      ? surveys.filter((s) => s.hotel === hotelFilter)
+      : surveys
+    : null;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -56,18 +64,33 @@ export default function Summary() {
           </h2>
           <p className="text-gray-500 mt-2 text-lg">{t('summary.subtitle')}</p>
         </div>
-        <div className="flex bg-gray-100 rounded-2xl p-1">
-          {RANGES.map((r, i) => (
-            <button
-              key={r.key}
-              onClick={() => setRangeIdx(i)}
-              className={`px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold transition ${
-                rangeIdx === i ? 'bg-white text-[#FF6B6B] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t(r.key)}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={hotelFilter}
+            onChange={(e) => setHotelFilter(e.target.value)}
+            aria-label={t('field.hotel')}
+            className="bg-gray-100 rounded-2xl px-3 py-2.5 text-xs md:text-sm font-bold text-gray-600 outline-none focus:ring-2 focus:ring-[#FF6B6B] cursor-pointer"
+          >
+            <option value="">{t('dash.allHotels')}</option>
+            {HOTELS.map((h) => (
+              <option key={h.name} value={h.name}>
+                {h.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex bg-gray-100 rounded-2xl p-1">
+            {RANGES.map((r, i) => (
+              <button
+                key={r.key}
+                onClick={() => setRangeIdx(i)}
+                className={`px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold transition ${
+                  rangeIdx === i ? 'bg-white text-[#FF6B6B] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t(r.key)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -81,7 +104,7 @@ export default function Summary() {
         <div className="py-20 text-center text-gray-400 font-bold">{t('dash.loading')}</div>
       )}
 
-      {surveys && surveys.length === 0 && !loading && (
+      {visible && visible.length === 0 && !loading && (
         <div className="py-20 text-center space-y-4">
           <div className="w-24 h-24 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
             <ImageOff className="w-12 h-12" />
@@ -91,9 +114,9 @@ export default function Summary() {
         </div>
       )}
 
-      {surveys && surveys.length > 0 && (
+      {visible && visible.length > 0 && (
         <div className="space-y-6">
-          {surveys.map((s) => {
+          {visible.map((s) => {
             const overall = mean(surveyRatings(s));
             const time = s.timeOfService ? t(TIME_KEY[s.timeOfService]) || s.timeOfService : '';
             const meta = [time, s.typeOfService].filter(Boolean).join(' · ');

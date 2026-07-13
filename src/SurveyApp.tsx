@@ -58,6 +58,7 @@ export default function SurveyApp() {
   // Report state
   const [reportStartDate, setReportStartDate] = useState(today());
   const [reportEndDate, setReportEndDate] = useState(today());
+  const [reportHotel, setReportHotel] = useState(''); // '' = all hotels
   const [isDownloading, setIsDownloading] = useState(false);
   const [reportError, setReportError] = useState('');
 
@@ -421,7 +422,8 @@ export default function SurveyApp() {
     setReportError('');
 
     try {
-      const surveys = await getSurveysByDate(reportStartDate, reportEndDate);
+      const all = await getSurveysByDate(reportStartDate, reportEndDate);
+      const surveys = reportHotel ? all.filter((s) => s.hotel === reportHotel) : all;
 
       if (surveys.length === 0) {
         setReportError(t('reports.errNoData'));
@@ -519,7 +521,8 @@ export default function SurveyApp() {
 
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `evaluations_${reportStartDate}_to_${reportEndDate}.csv`);
+      const hotelSlug = reportHotel ? reportHotel.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') + '_' : '';
+      link.setAttribute('download', `evaluations_${hotelSlug}${reportStartDate}_to_${reportEndDate}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1086,6 +1089,24 @@ export default function SurveyApp() {
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                    <div className="md:col-span-2">
+                      <label htmlFor="reportHotel" className="block text-sm font-bold text-gray-700 mb-2">
+                        {t('field.hotel')}
+                      </label>
+                      <select
+                        id="reportHotel"
+                        value={reportHotel}
+                        onChange={(e) => setReportHotel(e.target.value)}
+                        className="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-transparent focus:border-[#FF6B6B] outline-none text-base font-medium cursor-pointer"
+                      >
+                        <option value="">{t('dash.allHotels')}</option>
+                        {HOTELS.map((h) => (
+                          <option key={h.name} value={h.name}>
+                            {h.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div>
                       <label
                         htmlFor="reportStartDate"
