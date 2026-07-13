@@ -145,6 +145,28 @@ export default function Summary() {
                       </div>
                     </div>
                   ))}
+                  {(s.beverageItems ?? []).map((item, idx) => (
+                    <div key={`bev-${idx}`} className="space-y-2">
+                      {item.imageUrl ? (
+                        <a href={item.imageUrl} target="_blank" rel="noreferrer" className="block">
+                          <img
+                            src={item.imageUrl}
+                            alt={item.itemName}
+                            loading="lazy"
+                            className="w-full h-28 md:h-32 object-cover rounded-2xl border border-gray-100 hover:opacity-90 transition"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-full h-28 md:h-32 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center text-gray-300 gap-1">
+                          <ImageOff className="w-6 h-6" />
+                          <span className="text-[10px] font-bold">{t('summary.noPhoto')}</span>
+                        </div>
+                      )}
+                      <div className="text-sm font-bold text-[#2D2D2D] truncate" title={item.itemName}>
+                        🍹 {item.itemName || '—'}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Comment */}

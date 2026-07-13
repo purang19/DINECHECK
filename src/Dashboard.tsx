@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutDashboard, RefreshCw, Star, UtensilsCrossed } from 'lucide-react';
+import { CupSoda, LayoutDashboard, RefreshCw, Star, UtensilsCrossed } from 'lucide-react';
 import { getSurveysSince } from './supabase';
-import { FOOD_FIELDS, RATING_LABEL_KEY, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
+import { BEVERAGE_FIELDS, FOOD_FIELDS, RATING_LABEL_KEY, SERVICE_FIELDS, mean, startDateFor, surveyRatings, toNum } from './stats';
 import { HOTELS } from './hotels';
 import { useLang } from './i18n';
 import type { StoredSurvey } from './types';
@@ -84,6 +84,14 @@ export default function Dashboard() {
       }
       return { field: f as string, value: mean(vals) };
     });
+    const beverageByField = BEVERAGE_FIELDS.map((f) => {
+      const vals: number[] = [];
+      for (const s of scoped) for (const item of s.beverageItems ?? []) {
+        const n = toNum(item[f]);
+        if (n != null) vals.push(n);
+      }
+      return { field: f as string, value: mean(vals) };
+    });
     const serviceByField = SERVICE_FIELDS.map((f) => {
       const vals: number[] = [];
       for (const s of scoped) {
@@ -94,6 +102,7 @@ export default function Dashboard() {
     });
 
     const foodAll = foodByField.flatMap((c) => (c.value == null ? [] : [c.value]));
+    const beverageAll = beverageByField.flatMap((c) => (c.value == null ? [] : [c.value]));
     const serviceAll = serviceByField.flatMap((c) => (c.value == null ? [] : [c.value]));
 
     // Average score grouped by a chosen key (hotel or outlet).
@@ -120,10 +129,12 @@ export default function Dashboard() {
       total: scoped.length,
       itemCount,
       foodByField,
+      beverageByField,
       serviceByField,
       foodQuality: mean(foodAll),
+      beverage: mean(beverageAll),
       service: mean(serviceAll),
-      overall: mean([...foodAll, ...serviceAll]),
+      overall: mean([...foodAll, ...beverageAll, ...serviceAll]),
       byHotel,
       byRestaurant,
       recent,
@@ -201,19 +212,30 @@ export default function Dashboard() {
       {stats && stats.total > 0 && (
         <div className="space-y-8">
           {/* KPI tiles */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div
+            className={`grid grid-cols-2 gap-3 md:gap-4 ${
+              stats.beverage != null ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+            }`}
+          >
             <StatTile
               label={t('kpi.evaluations')}
               value={String(stats.total)}
               sub={t('kpi.dishes', { n: stats.itemCount })}
             />
             <StatTile label={t('kpi.foodQuality')} value={fmt(stats.foodQuality)} sub={t('kpi.avgOutOf5')} />
+            {stats.beverage != null && (
+              <StatTile label={t('kpi.beverage')} value={fmt(stats.beverage)} sub={t('kpi.avgOutOf5')} />
+            )}
             <StatTile label={t('kpi.service')} value={fmt(stats.service)} sub={t('kpi.avgOutOf5')} />
             <StatTile label={t('kpi.overall')} value={fmt(stats.overall)} sub={t('kpi.avgOutOf5')} />
           </div>
 
           {/* Category breakdowns */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <div
+            className={`grid grid-cols-1 gap-4 md:gap-6 ${
+              stats.beverage != null ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+            }`}
+          >
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
               <h3 className="font-black text-[#2D2D2D] flex items-center gap-2">
                 <UtensilsCrossed className="w-5 h-5 text-[#FF6B6B]" /> {t('kpi.foodQuality')}
@@ -224,6 +246,18 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
+            {stats.beverage != null && (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
+                <h3 className="font-black text-[#2D2D2D] flex items-center gap-2">
+                  <CupSoda className="w-5 h-5 text-[#FF6B6B]" /> {t('beverage.title')}
+                </h3>
+                <div className="space-y-3">
+                  {stats.beverageByField.map((c) => (
+                    <ScoreBar key={c.field} label={t(RATING_LABEL_KEY[c.field])} value={c.value} />
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 space-y-4">
               <h3 className="font-black text-[#2D2D2D] flex items-center gap-2">
                 <Star className="w-5 h-5 text-[#FF6B6B]" /> {t('kpi.service')}

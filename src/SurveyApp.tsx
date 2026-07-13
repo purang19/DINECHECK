@@ -6,7 +6,7 @@ import Dashboard from './Dashboard';
 import Summary from './Summary';
 import { HOTELS, outletsForHotel } from './hotels';
 import { useLang } from './i18n';
-import type { SurveyData, TastedItem } from './types';
+import type { BeverageItem, SurveyData, TastedItem } from './types';
 
 const emptyItem = (): TastedItem => ({
   itemName: '',
@@ -15,6 +15,13 @@ const emptyItem = (): TastedItem => ({
   freshnessOfFood: '',
   foodTemperature: '',
   foodPresentation: '',
+});
+
+const emptyBeverage = (): BeverageItem => ({
+  itemName: '',
+  drinkQuality: '',
+  drinkFlavorBalance: '',
+  responseTime: '',
 });
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -63,6 +70,7 @@ export default function SurveyApp() {
     timeOfService: '',
     typeOfService: '',
     tastedItems: [emptyItem()],
+    beverageItems: [],
     promptnessOfService: '',
     attentivenessAndCare: '',
     cleanliness: '',
@@ -81,6 +89,24 @@ export default function SurveyApp() {
       return a;
     });
     setItemPreviews((prev) => {
+      const a = [...prev];
+      if (a[index]) URL.revokeObjectURL(a[index] as string);
+      a[index] = file ? URL.createObjectURL(file) : null;
+      return a;
+    });
+  };
+
+  // Beverage photo state (parallel to beverageItems; starts empty since optional).
+  const [beverageFiles, setBeverageFiles] = useState<(File | null)[]>([]);
+  const [beveragePreviews, setBeveragePreviews] = useState<(string | null)[]>([]);
+
+  const handleBeverageFile = (index: number, file: File | null) => {
+    setBeverageFiles((prev) => {
+      const a = [...prev];
+      a[index] = file;
+      return a;
+    });
+    setBeveragePreviews((prev) => {
       const a = [...prev];
       if (a[index]) URL.revokeObjectURL(a[index] as string);
       a[index] = file ? URL.createObjectURL(file) : null;
@@ -125,6 +151,39 @@ export default function SurveyApp() {
         return a;
       });
     }
+  };
+
+  const handleBeverageItemChange = (index: number, field: keyof BeverageItem, value: string) => {
+    setFormData((prev) => {
+      const arr = [...prev.beverageItems];
+      arr[index] = { ...arr[index], [field]: value };
+      return { ...prev, beverageItems: arr };
+    });
+  };
+
+  const addBeverageItem = () => {
+    setFormData((prev) => ({ ...prev, beverageItems: [...prev.beverageItems, emptyBeverage()] }));
+    setBeverageFiles((prev) => [...prev, null]);
+    setBeveragePreviews((prev) => [...prev, null]);
+  };
+
+  const removeBeverageItem = (index: number) => {
+    setFormData((prev) => {
+      const arr = [...prev.beverageItems];
+      arr.splice(index, 1);
+      return { ...prev, beverageItems: arr };
+    });
+    setBeverageFiles((prev) => {
+      const a = [...prev];
+      a.splice(index, 1);
+      return a;
+    });
+    setBeveragePreviews((prev) => {
+      const a = [...prev];
+      if (a[index]) URL.revokeObjectURL(a[index] as string);
+      a.splice(index, 1);
+      return a;
+    });
   };
 
   const handleInputChange = (
@@ -175,6 +234,14 @@ export default function SurveyApp() {
       }
     }
 
+    // Beverages are optional, but any added drink must be complete.
+    for (const item of formData.beverageItems) {
+      if (!item.itemName || !item.drinkQuality || !item.drinkFlavorBalance || !item.responseTime) {
+        setErrorMsg(t('err.beverageRatings', { item: item.itemName || '—' }));
+        return false;
+      }
+    }
+
     if (
       !formData.promptnessOfService ||
       !formData.attentivenessAndCare ||
@@ -198,12 +265,21 @@ export default function SurveyApp() {
     setIsSubmitting(true);
     setErrorMsg('');
 
-    // Upload any selected dish photos first, attaching their URLs to the items.
+    // Upload any selected dish/drink photos first, attaching their URLs.
     let itemsWithPhotos: TastedItem[];
+    let beverageWithPhotos: BeverageItem[];
     try {
       itemsWithPhotos = await Promise.all(
         formData.tastedItems.map(async (item, i) => {
           const file = itemFiles[i];
+          if (!file) return item;
+          const imageUrl = await uploadMenuPhoto(file);
+          return { ...item, imageUrl };
+        }),
+      );
+      beverageWithPhotos = await Promise.all(
+        formData.beverageItems.map(async (item, i) => {
+          const file = beverageFiles[i];
           if (!file) return item;
           const imageUrl = await uploadMenuPhoto(file);
           return { ...item, imageUrl };
@@ -218,7 +294,7 @@ export default function SurveyApp() {
     }
 
     try {
-      await submitSurvey({ ...formData, tastedItems: itemsWithPhotos });
+      await submitSurvey({ ...formData, tastedItems: itemsWithPhotos, beverageItems: beverageWithPhotos });
       setIsSuccess(true);
       loadWeeklyInsight();
       scrollToTop();
@@ -243,6 +319,7 @@ export default function SurveyApp() {
       timeOfService: '',
       typeOfService: '',
       tastedItems: [emptyItem()],
+      beverageItems: [],
       promptnessOfService: '',
       attentivenessAndCare: '',
       cleanliness: '',
@@ -254,6 +331,11 @@ export default function SurveyApp() {
       return [null];
     });
     setItemFiles([null]);
+    setBeveragePreviews((prev) => {
+      prev.forEach((p) => p && URL.revokeObjectURL(p));
+      return [];
+    });
+    setBeverageFiles([]);
   };
 
   const renderRatingGroup = (name: StaffRatingField, label: string) => (
@@ -305,6 +387,32 @@ export default function SurveyApp() {
     );
   };
 
+  const renderBeverageRatingGroup = (index: number, name: keyof BeverageItem, label: string) => {
+    const value = formData.beverageItems[index][name];
+    return (
+      <div>
+        <span className="block text-sm md:text-base font-bold text-gray-700 mb-2 md:mb-4">{label}</span>
+        <div className="flex justify-between gap-1 md:gap-2">
+          {[1, 2, 3, 4, 5].map((rating) => (
+            <label key={`bev-${index}-${name}-${rating}`} className="relative flex-1 text-center cursor-pointer">
+              <input
+                type="radio"
+                name={`bev-${index}-${name}`}
+                value={String(rating)}
+                className="sr-only peer"
+                checked={value === String(rating)}
+                onChange={() => handleBeverageItemChange(index, name, String(rating))}
+              />
+              <span className="block py-2 md:py-4 border-2 md:border-4 border-transparent rounded-xl md:rounded-2xl peer-checked:bg-[#FFF2F2] peer-checked:text-[#2D2D2D] peer-checked:border-[#FF6B6B] hover:border-[#FF6B6B] bg-gray-50 text-sm md:text-base font-bold transition-all shadow-sm">
+                {rating}
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const csvCell = (value: string) => `"${(value ?? '').replace(/"/g, '""')}"`;
 
   const handleDownloadReport = async (e: React.FormEvent) => {
@@ -329,12 +437,16 @@ export default function SurveyApp() {
         'Restaurant',
         'Time of Service',
         'Type of Service',
+        'Section',
         'Item Name',
         'Food Taste',
         'Quality of Ingredients',
         'Freshness',
         'Temperature',
         'Presentation',
+        'Drink Quality',
+        'Drink Flavor & Balance',
+        'Response Time',
         'Promptness',
         'Attentiveness',
         'Cleanliness',
@@ -343,31 +455,58 @@ export default function SurveyApp() {
         'Submitted At',
       ];
 
-      // One CSV row per tasted item so per-dish ratings are preserved.
+      // One CSV row per item (food and beverage), preserving per-item ratings.
       const csvRows = [headers.join(',')];
       for (const survey of surveys) {
-        const items = survey.tastedItems?.length ? survey.tastedItems : [emptyItem()];
-        for (const item of items) {
+        const base = [
+          survey.date,
+          survey.name,
+          survey.employeeId,
+          survey.hotel,
+          survey.restaurant,
+          survey.timeOfService,
+          survey.typeOfService,
+        ];
+        const tail = [
+          survey.promptnessOfService,
+          survey.attentivenessAndCare,
+          survey.cleanliness,
+          survey.value,
+          survey.comments || '',
+          survey.createdAt,
+        ];
+        const foodItems = survey.tastedItems?.length ? survey.tastedItems : [emptyItem()];
+        for (const item of foodItems) {
           const row = [
-            survey.date,
-            survey.name,
-            survey.employeeId,
-            survey.hotel,
-            survey.restaurant,
-            survey.timeOfService,
-            survey.typeOfService,
+            ...base,
+            'Food',
             item.itemName,
             item.foodTaste,
             item.qualityOfIngredients,
             item.freshnessOfFood,
             item.foodTemperature,
             item.foodPresentation,
-            survey.promptnessOfService,
-            survey.attentivenessAndCare,
-            survey.cleanliness,
-            survey.value,
-            survey.comments || '',
-            survey.createdAt,
+            '',
+            '',
+            '',
+            ...tail,
+          ].map((cell) => csvCell(String(cell ?? '')));
+          csvRows.push(row.join(','));
+        }
+        for (const item of survey.beverageItems ?? []) {
+          const row = [
+            ...base,
+            'Beverage',
+            item.itemName,
+            '',
+            '',
+            '',
+            '',
+            '',
+            item.drinkQuality,
+            item.drinkFlavorBalance,
+            item.responseTime,
+            ...tail,
           ].map((cell) => csvCell(String(cell ?? '')));
           csvRows.push(row.join(','));
         }
@@ -766,6 +905,99 @@ export default function SurveyApp() {
                       className="w-full bg-[#FFF2F2] text-[#FF6B6B] px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:bg-[#ffe5e5] transition flex items-center justify-center gap-2 border-2 border-[#FF6B6B]"
                     >
                       {t('item.add')}
+                    </button>
+                  </section>
+
+                  {/* SECTION 2b: BEVERAGE QUALITY (optional) */}
+                  <section className="space-y-4 md:space-y-6 pt-4">
+                    <div className="border-b-2 border-gray-100 pb-2 md:pb-4 mb-4 md:mb-6">
+                      <h2 className="text-xl md:text-2xl font-black text-[#2D2D2D] flex items-center gap-2 md:gap-3">
+                        {t('beverage.title')} <span className="text-2xl md:text-3xl">🍹</span>
+                      </h2>
+                    </div>
+
+                    {formData.beverageItems.map((item, index) => (
+                      <div
+                        key={index}
+                        className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border-2 border-gray-100 space-y-6 md:space-y-8 shadow-sm relative"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => removeBeverageItem(index)}
+                          className="absolute top-4 right-4 text-red-500 font-bold text-xs md:text-sm bg-red-50 px-2 py-1 md:px-3 md:py-1 rounded-lg md:rounded-xl hover:bg-red-100"
+                        >
+                          {t('item.remove')}
+                        </button>
+
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1 md:mb-2 mt-4 md:mt-0">
+                            {t('item.beverageName', { n: index + 1 })}
+                          </label>
+                          <input
+                            type="text"
+                            value={item.itemName}
+                            onChange={(e) => handleBeverageItemChange(index, 'itemName', e.target.value)}
+                            className="w-full bg-gray-50 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm border-2 border-transparent focus:border-[#FF6B6B] outline-none text-sm md:text-base font-medium"
+                            placeholder={t('placeholder.beverage')}
+                          />
+                        </div>
+
+                        {/* Drink photo (optional) */}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1 md:mb-2">
+                            {t('field.photo')}
+                          </label>
+                          {beveragePreviews[index] ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={beveragePreviews[index] as string}
+                                alt=""
+                                className="w-20 h-20 object-cover rounded-xl border border-gray-100"
+                              />
+                              <label className="cursor-pointer text-[#FF6B6B] font-bold text-sm bg-[#FFF2F2] px-3 py-2 rounded-xl hover:bg-[#ffe5e5]">
+                                {t('photo.change')}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleBeverageFile(index, e.target.files?.[0] ?? null)}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleBeverageFile(index, null)}
+                                className="text-red-500 font-bold text-sm"
+                              >
+                                {t('photo.remove')}
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer flex items-center justify-center gap-2 w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl md:rounded-2xl p-4 text-gray-500 font-bold hover:border-[#FF6B6B] hover:text-[#FF6B6B] transition">
+                              <ImagePlus className="w-5 h-5" /> {t('photo.add')}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleBeverageFile(index, e.target.files?.[0] ?? null)}
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        <div className="space-y-4 md:space-y-8">
+                          {renderBeverageRatingGroup(index, 'drinkQuality', t('rating.drinkQuality'))}
+                          {renderBeverageRatingGroup(index, 'drinkFlavorBalance', t('rating.drinkFlavorBalance'))}
+                          {renderBeverageRatingGroup(index, 'responseTime', t('rating.responseTime'))}
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={addBeverageItem}
+                      className="w-full bg-[#FFF2F2] text-[#FF6B6B] px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:bg-[#ffe5e5] transition flex items-center justify-center gap-2 border-2 border-[#FF6B6B]"
+                    >
+                      {t('beverage.add')}
                     </button>
                   </section>
 

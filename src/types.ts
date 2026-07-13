@@ -8,6 +8,14 @@ export interface TastedItem {
   imageUrl?: string;
 }
 
+export interface BeverageItem {
+  itemName: string;
+  drinkQuality: string;
+  drinkFlavorBalance: string;
+  responseTime: string;
+  imageUrl?: string;
+}
+
 export interface SurveyData {
   date: string;
   name: string;
@@ -17,6 +25,7 @@ export interface SurveyData {
   timeOfService: string;
   typeOfService: string;
   tastedItems: TastedItem[];
+  beverageItems: BeverageItem[];
   promptnessOfService: string;
   attentivenessAndCare: string;
   cleanliness: string;
